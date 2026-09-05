@@ -545,3 +545,56 @@ map is missing.
 
 The result is an actively growing, explainable, confidence-scored dataset
 of the exact grid layer nobody's mapped yet.
+ #tree for the whole porject
+ gridverify/
+├── docker-compose.yml
+├── README.md
+│
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── main.py                    # FastAPI app entrypoint
+│   ├── database.py                # PostgreSQL + PostGIS connection setup
+│   ├── models.py                  # SQLAlchemy model: Submission
+│   ├── schemas.py                 # Pydantic request/response schemas
+│   │
+│   ├── routers/
+│   │   ├── health.py              # GET /api/health
+│   │   └── submissions.py         # POST /submissions, GET /submissions, GET /submissions/{id}
+│   │
+│   ├── services/
+│   │   ├── cv_service.py          # calls CV model/API, returns label + confidence
+│   │   ├── osm_service.py         # Overpass API query, distance calc, match score
+│   │   └── confidence_engine.py   # combines cv_score + osm_score → final_confidence + status
+│   │
+│   └── uploads/                   # stored submission photos (or swap for S3/local volume)
+│
+├── ml/
+│   ├── requirements.txt
+│   ├── model/                     # fine-tuned weights, if not using hosted inference
+│   ├── train.py                   # optional — only if fine-tuning, not using hosted API
+│   ├── infer.py                   # verify_image(image, claimed_type) → {label, confidence}
+│   └── labels.py                  # MVP asset class list (pylon, pole, transformer, etc.)
+│
+└── frontend/
+    ├── package.json
+    ├── vite.config.ts
+    ├── index.html
+    │
+    └── src/
+        ├── main.tsx
+        ├── App.tsx
+        │
+        ├── api/
+        │   └── client.ts          # Axios instance + API calls
+        │
+        ├── components/
+        │   ├── Map.tsx            # MapLibre map, renders markers from GeoJSON
+        │   ├── MarkerPopup.tsx    # shows status, confidence, evidence on click
+        │   └── SubmissionForm.tsx # photo upload, GPS capture, asset-type dropdown
+        │
+        ├── pages/
+        │   └── Home.tsx           # combines map + submission form
+        │
+        └── types/
+            └── submission.ts      # TS types matching backend schema
