@@ -1,2 +1,10 @@
+<<<<<<< HEAD
 GridVerify-Hackathon-Data/
 GridVerify-Hackathon-Data/
+=======
+data/*
+!data/GridVerify-Hackathon-Data.zip
+*.DS_Store
+__pycache__/
+.venv/
+>>>>>>> 505ec74 (Initialize GridVerify dataset repository)
