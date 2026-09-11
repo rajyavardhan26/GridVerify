@@ -1,181 +1,240 @@
 # ⚡ GridVerify
 
-### Crowd-Verified Power Infrastructure Mapping
+### Crowd-Verified Electrical Infrastructure Mapping Using Computer Vision and Geospatial Intelligence
 
-> **Hackathon MVP — 24 Hour Build**
+GridVerify is an AI-assisted crowdsourcing platform for discovering, verifying, and mapping electrical infrastructure such as **utility poles, transformers, and transmission towers**.
 
-GridVerify is a lightweight infrastructure-mapping platform that helps discover and verify **utility poles, transformers, transmission towers, and other visible electrical infrastructure** using:
+Citizens submit a photograph of visible electrical infrastructure from a safe public location. GridVerify captures the GPS location, analyzes the image using computer vision, cross-checks nearby infrastructure using OpenStreetMap, generates an explainable verification result, stores the observation, and displays it on an interactive map.
 
-* 📸 Citizen-submitted photographs
-* 📍 GPS coordinates
-* 🤖 Computer Vision
-* 🗺️ OpenStreetMap / geospatial validation
-* 📊 Explainable confidence scoring
-* 🗃️ Database-backed observations
-* 🌍 Interactive infrastructure map
-
----
-
-# 🚀 The Idea
-
-A large amount of transmission-level power infrastructure is already mapped.
-
-However, distribution-level infrastructure such as:
-
-* Utility poles
-* Pole-mounted transformers
-* Distribution transformers
-* Small electrical assets
-
-is still poorly mapped in many locations.
-
-GridVerify attempts to fill this gap through **crowdsourced observations verified using AI and existing geospatial data**.
-
----
-
-# 🔄 How GridVerify Works
+The core idea is simple:
 
 ```text
-Citizen Observation
-        │
-        ▼
 Photo + GPS + Asset Type
-        │
-        ▼
-Computer Vision Verification
-        │
-        ▼
-OpenStreetMap Cross-Check
-        │
-        ▼
-Confidence Engine
-        │
-        ▼
-Database Storage
-        │
-        ▼
-Verification Status
-        │
-        ▼
-Interactive Infrastructure Map
+          ↓
+    Computer Vision
+          +
+ OpenStreetMap Check
+          ↓
+ Verification Engine
+          ↓
+     Database
+          ↓
+   Interactive Map
 ```
+
+> **GridVerify does not only consume an existing infrastructure dataset — it helps discover infrastructure that may be missing from existing maps.**
 
 ---
 
 # 🎯 Problem Statement
 
-Existing infrastructure mapping projects primarily focus on large transmission infrastructure.
+Accurate information about electrical infrastructure is important for:
 
-The infrastructure closest to homes and neighborhoods — particularly utility poles and transformers — is much harder to maintain accurately at scale.
+- Infrastructure planning
+- Disaster response
+- Research
+- Grid modernization
+- Geographic analysis
+- Infrastructure accessibility
+- Public-interest mapping
 
-GridVerify addresses the question:
+Large transmission infrastructure is often represented in public geospatial datasets.
 
-> **How can inexpensive citizen observations, computer vision and existing open-map information be combined to discover and confidence-score distribution-level electrical infrastructure?**
+However, distribution-level infrastructure such as:
+
+- Utility poles
+- Pole-mounted transformers
+- Distribution transformers
+
+can be incomplete, inconsistent, or unavailable in open datasets.
+
+Traditional infrastructure mapping may also require trained contributors, GIS software, field surveys, or access to utility-owned datasets.
+
+GridVerify explores a different approach:
+
+> Can ordinary citizen observations, computer vision, GPS, and existing open geospatial data be combined to help discover and verify electrical infrastructure?
 
 ---
 
-# 💡 Proposed Solution
+# 💡 Solution
 
-A contributor takes a photograph of visible electrical infrastructure from a safe public location.
+GridVerify allows a user to:
 
-The application captures:
+1. Take or upload a photograph.
+2. Capture the GPS location.
+3. Select the type of infrastructure observed.
+4. Submit the observation.
+5. Run computer-vision verification.
+6. Search nearby OpenStreetMap infrastructure.
+7. Generate an explainable verification result.
+8. Store the observation.
+9. Display it on an interactive map.
+
+```text
+Citizen
+   │
+   ▼
+Photo + GPS + Claimed Asset
+   │
+   ▼
+┌─────────────────────────────┐
+│      GridVerify Backend     │
+└─────────────┬───────────────┘
+              │
+       ┌──────┴──────┐
+       ▼             ▼
+ Computer Vision   OSM Check
+       │             │
+       └──────┬──────┘
+              ▼
+      Verification Engine
+              │
+              ▼
+          Database
+              │
+              ▼
+       Interactive Map
+```
+
+---
+
+# 🏗️ Supported Infrastructure
+
+For the **hackathon MVP**, the computer-vision model focuses on three classes:
+
+```text
+0 → utility_pole
+1 → transformer
+2 → transmission_tower
+```
+
+Pole-mounted and distribution transformers are normalized into the broader `transformer` class.
+
+Additional infrastructure classes can be introduced later, including:
+
+- Substations
+- Insulators
+- Crossarms
+- Electrical switches
+- Power lines
+- Other distribution assets
+
+> The hackathon priority is reliable end-to-end verification, not maximizing the number of detectable classes.
+
+---
+
+# 🔄 Complete GridVerify Workflow
+
+## 1. Citizen Observation
+
+The user provides:
 
 ```text
 Photo
++
 GPS Coordinates
-Asset Type
++
+Claimed Asset Type
++
 Timestamp
 ```
-
-The observation is then checked using two independent verification systems.
-
----
-
-# 🏗️ Supported Infrastructure Types
-
-For the hackathon MVP:
-
-```text
-Transmission Tower / Pylon
-Utility Pole
-Pole-Mounted Transformer
-Distribution Transformer
-Substation Exterior
-Unknown Power Asset
-```
-
-Do not increase the number of classes unless the core pipeline is already working.
-
----
-
-# 🤖 Verification System
-
-## 1. Computer Vision Verification
-
-The submitted image is analyzed by a computer-vision model.
 
 Example:
 
 ```text
-User Selection:
-Transmission Tower
+Photo:
+transformer.jpg
 
-AI Prediction:
+GPS:
+12.9345, 77.5342
 
-Transmission Tower     92%
-Utility Pole            5%
-Other                   3%
+Claimed Asset:
+Transformer
 ```
 
-The model returns:
+---
+
+## 2. Computer Vision
+
+The submitted photograph is analyzed by a fine-tuned YOLO object-detection model.
+
+Example:
+
+```text
+Claimed Asset:
+Transformer
+
+        ↓
+
+YOLO Detection:
+
+Transformer
+Confidence: 92%
+```
+
+The CV service returns a simple result:
 
 ```json
 {
-  "label": "transmission_tower",
+  "label": "transformer",
   "confidence": 0.92
+}
+```
+
+The computer-vision model answers:
+
+> **What electrical infrastructure appears in this photograph?**
+
+It does not decide whether that infrastructure is already mapped.
+
+That is handled separately by the geospatial verification system.
+
+---
+
+## 3. OpenStreetMap Cross-Check
+
+GridVerify uses the submitted GPS coordinates to search for nearby electrical infrastructure in OpenStreetMap through the Overpass API.
+
+Relevant OSM objects include:
+
+```text
+power=pole
+power=tower
+power=transformer
+power=substation
+```
+
+Example:
+
+```text
+Submitted GPS
+      ↓
+Search nearby OSM objects
+      ↓
+power=transformer found
+      ↓
+Distance = 8.4 m
+      ↓
+OSM MATCH
+```
+
+Conceptual result:
+
+```json
+{
+  "match": true,
+  "distance_m": 8.4,
+  "score": 0.85
 }
 ```
 
 ---
 
-# 🗺️ 2. OpenStreetMap Verification
+# 🧠 Verification Engine
 
-GridVerify searches OpenStreetMap around the submitted GPS coordinates.
+GridVerify combines visual evidence and geospatial evidence.
 
-Possible result:
-
-```text
-Nearby OSM Object Found
-
-Type:
-power=tower
-
-Distance:
-8.4 metres
-
-OSM Match:
-HIGH
-```
-
-Or:
-
-```text
-No matching power infrastructure found nearby.
-
-Possible unmapped infrastructure.
-```
-
-This second result is extremely important.
-
-It does **not automatically mean the submission is fake**.
-
-Instead, the system may have discovered infrastructure that has not yet been mapped.
-
----
-
-# 🧠 Confidence Engine
-
-Instead of using another ML model, the hackathon MVP uses a simple explainable weighted score.
+For observations where matching OSM infrastructure exists, an initial explainable score can be calculated as:
 
 ```text
 Final Confidence =
@@ -187,186 +246,372 @@ Final Confidence =
 Example:
 
 ```text
-CV Score  = 0.92
-OSM Score = 0.85
+CV Confidence  = 0.92
+OSM Confidence = 0.85
 
-Final Confidence
-
-= (0.92 × 0.60) + (0.85 × 0.40)
+Final =
+(0.92 × 0.60)
++
+(0.85 × 0.40)
 
 = 0.892
 
 ≈ 89.2%
 ```
 
-These weights are **prototype values**, not scientifically validated probabilities.
+These weights are prototype heuristics.
+
+They are **not intended to represent scientifically calibrated probabilities**.
 
 ---
 
-# ⚠️ When No OSM Match Exists
+# ⭐ Important Verification Logic
 
-A missing OSM record should NOT automatically reduce a legitimate submission to rejected.
+## Case 1 — CV and OSM Agree
+
+```text
+Strong CV Detection
+        +
+Nearby Matching OSM Asset
+        ↓
+     VERIFIED
+```
 
 Example:
 
 ```text
-AI Detection:
-Pole-Mounted Transformer
+Claim:
+Transformer
 
-CV Confidence:
-94%
+CV:
+Transformer — 92%
 
 OSM:
-No matching object found
+Transformer — 9 m away
 
 Result:
-POSSIBLE UNMAPPED ASSET
+VERIFIED
 ```
-
-This is one of the main use cases of GridVerify.
 
 ---
 
-# ✅ Verification Status
+## Case 2 — Strong CV but No OSM Record
 
-Initial MVP thresholds:
+This is one of the most important GridVerify scenarios.
 
 ```text
-Confidence >= 0.75
+Strong CV Detection
+        +
+Valid GPS
+        +
+No Nearby OSM Record
         ↓
-VERIFIED
+POSSIBLE_UNMAPPED
+```
 
+Example:
 
-0.45 <= Confidence < 0.75
+```text
+Claim:
+Transformer
+
+CV:
+Transformer — 94%
+
+OSM:
+No transformer found nearby
+
+Result:
+POSSIBLE_UNMAPPED
+```
+
+An absent OSM object does **not** automatically mean the citizen observation is incorrect.
+
+It may indicate that the infrastructure is missing from the existing public map.
+
+This is central to GridVerify's purpose.
+
+---
+
+## Case 3 — Weak Evidence
+
+```text
+Low CV Confidence
         ↓
 PENDING
+```
 
+or, when evidence strongly contradicts the submitted claim:
 
-Confidence < 0.45
-        ↓
+```text
 REJECTED
 ```
 
-These values can be adjusted after testing.
+---
+
+# 🚦 Verification States
+
+GridVerify uses four practical states:
+
+### 🟢 VERIFIED
+
+Existing evidence strongly supports the observation.
+
+### 🟡 PENDING
+
+Evidence exists but is not strong enough for automatic verification.
+
+### 🟠 POSSIBLE_UNMAPPED
+
+Strong visual evidence exists, but no corresponding nearby OSM asset was found.
+
+### 🔴 REJECTED
+
+Visual evidence is weak or inconsistent with the submitted claim.
 
 ---
 
-# 🎨 Map Status Colors
+# 🗺️ Interactive Map
+
+Every stored observation can be displayed on the GridVerify map.
+
+Suggested marker states:
 
 ```text
-🟢 Green
-Verified
+🟢 VERIFIED
 
+🟡 PENDING
 
-🟡 Yellow
-Needs More Evidence / Pending
+🟠 POSSIBLE_UNMAPPED
 
-
-🟠 Orange
-Possible Unmapped Asset / Under Review
-
-
-🔴 Red
-Rejected / Inconsistent
+🔴 REJECTED
 ```
 
----
+Clicking a marker can display:
 
-# ⭐ Core MVP Features
+```text
+Asset Type
+Claimed Asset
+CV Prediction
+CV Confidence
+OSM Match
+OSM Distance
+Final Confidence
+Verification Status
+Timestamp
+```
 
-The hackathon demo **must demonstrate all of these**.
-
-## Contributor
-
-* [ ] Photo upload / capture
-* [ ] Automatic GPS capture
-* [ ] Asset-type selection
-* [ ] Observation submission
-* [ ] Verification result
-
-## Computer Vision
-
-* [ ] Detect infrastructure object
-* [ ] Predict infrastructure class
-* [ ] Return confidence score
-
-## Geospatial Verification
-
-* [ ] Validate latitude and longitude
-* [ ] Query OpenStreetMap
-* [ ] Search nearby infrastructure
-* [ ] Calculate nearest-object distance
-* [ ] Return match / no-match
-
-## Verification Engine
-
-* [ ] Combine CV score
-* [ ] Combine OSM result
-* [ ] Calculate final confidence
-* [ ] Assign verification status
-
-## Database
-
-* [ ] Store submitted observations
-* [ ] Store GPS
-* [ ] Store AI results
-* [ ] Store OSM results
-* [ ] Store confidence score
-* [ ] Store verification status
-
-## Interactive Map
-
-* [ ] Load all observations
-* [ ] Display location markers
-* [ ] Color markers by status
-* [ ] Show observation information on click
+The map therefore shows not only known infrastructure but also observations that may represent **gaps in existing infrastructure data**.
 
 ---
 
 # 🏛️ System Architecture
 
 ```text
-┌───────────────────────────────────────────────┐
-│                 React Web App                 │
-│                                               │
-│   Photo Upload       GPS Capture              │
-│   Asset Selection    Infrastructure Map       │
-└──────────────────────┬────────────────────────┘
-                       │
-                       │ REST API
-                       ▼
-┌───────────────────────────────────────────────┐
-│                  FastAPI                      │
-│                                               │
-│   Submission API                              │
-│   Verification API                            │
-└───────────────┬────────────────┬──────────────┘
-                │                │
-                ▼                ▼
-      ┌────────────────┐   ┌───────────────────┐
-      │   CV Service   │   │ Geospatial Engine │
-      │                │   │                   │
-      │ Object         │   │ OpenStreetMap     │
-      │ Detection      │   │ Overpass API      │
-      └────────┬───────┘   └─────────┬─────────┘
-               │                     │
-               └──────────┬──────────┘
-                          ▼
-                ┌──────────────────────┐
-                │  Confidence Engine   │
-                └──────────┬───────────┘
-                           │
-                           ▼
-                ┌──────────────────────┐
-                │ PostgreSQL + PostGIS │
-                │                      │
-                │ Submissions          │
-                │ Geospatial Data      │
-                └──────────┬───────────┘
-                           │
-                           ▼
-                   Interactive Map
+┌──────────────────────────────────────────────┐
+│                React Web App                 │
+│                                              │
+│  Photo Upload            GPS Capture         │
+│  Asset Selection         Interactive Map     │
+└────────────────────┬─────────────────────────┘
+                     │
+                     │ REST API
+                     ▼
+┌──────────────────────────────────────────────┐
+│                   FastAPI                    │
+│                                              │
+│  Submission API          Verification API    │
+└────────────┬─────────────────────┬───────────┘
+             │                     │
+             ▼                     ▼
+┌──────────────────────┐   ┌──────────────────────┐
+│      CV Service      │   │  Geospatial Service │
+│                      │   │                      │
+│ Fine-Tuned YOLO      │   │ OpenStreetMap        │
+│ PyTorch              │   │ Overpass API         │
+└──────────┬───────────┘   └──────────┬───────────┘
+           │                          │
+           └────────────┬─────────────┘
+                        ▼
+              ┌────────────────────┐
+              │ Verification &     │
+              │ Confidence Engine  │
+              └─────────┬──────────┘
+                        │
+                        ▼
+              ┌────────────────────┐
+              │ PostgreSQL         │
+              │ + PostGIS          │
+              └─────────┬──────────┘
+                        │
+                        ▼
+                 Interactive Map
 ```
+
+---
+
+# 📊 Computer Vision Dataset
+
+For the hackathon MVP, GridVerify combines multiple public infrastructure datasets.
+
+The different labels are normalized into:
+
+```text
+utility_pole
+transformer
+transmission_tower
+```
+
+---
+
+## Dataset 1 — Pole Data
+
+Used primarily for:
+
+- Utility poles
+- Transformers
+
+Useful labels are mapped as:
+
+```text
+pole        → utility_pole
+transformer → transformer
+```
+
+Classes not required for the MVP, such as wires, streetlights, and crossarms, can be ignored during label normalization.
+
+---
+
+## Dataset 2 — Utility Poles
+
+Provides additional examples of:
+
+- Concrete poles
+- Steel poles
+- Wood/timber poles
+- Transformers
+
+Normalization:
+
+```text
+concrete pole ─┐
+steel pole ────┼──→ utility_pole
+wood pole ─────┘
+
+transformer ──────→ transformer
+```
+
+---
+
+## Dataset 3 — Transmission Towers
+
+Used primarily for:
+
+```text
+transmission tower
+        ↓
+transmission_tower
+```
+
+Classes such as insulators are excluded from the initial GridVerify model.
+
+---
+
+# 🇮🇳 Local Real-World Test Images
+
+Public datasets may contain infrastructure from different countries, viewing angles, environments, and camera systems.
+
+GridVerify should therefore also be tested using local photographs captured safely from public locations.
+
+Suggested structure:
+
+```text
+custom/
+├── poles/
+├── transformers/
+├── towers/
+└── negatives/
+```
+
+Negative examples may include:
+
+```text
+Streetlights
+Trees
+Telecom towers
+Road signs
+Buildings
+Empty roads
+Other street infrastructure
+```
+
+These images provide an external real-world test of whether the model generalizes to Indian electrical infrastructure.
+
+---
+
+# 🧪 Dataset Pipeline
+
+```text
+Pole Dataset
+      │
+Utility Pole Dataset
+      │
+Transmission Tower Dataset
+      │
+      ▼
+Label Normalization
+      │
+      ▼
+┌─────────────────────────┐
+│ 0 utility_pole          │
+│ 1 transformer           │
+│ 2 transmission_tower    │
+└────────────┬────────────┘
+             │
+             ▼
+        YOLO Dataset
+             │
+             ▼
+       Model Training
+             │
+             ▼
+          best.pt
+             │
+             ▼
+        CV Service
+```
+
+---
+
+# 🤖 Machine Learning Pipeline
+
+The MVP ML workflow is:
+
+```text
+Infrastructure Images
+        ↓
+YOLO Annotations
+        ↓
+Class Normalization
+        ↓
+Train / Validation / Test
+        ↓
+Fine-Tune YOLO
+        ↓
+Validate
+        ↓
+Test on Local Photos
+        ↓
+best.pt
+        ↓
+FastAPI CV Service
+```
+
+The goal is not to train the largest possible model.
+
+The goal is:
+
+> **A lightweight model capable of reliably demonstrating the complete GridVerify workflow.**
 
 ---
 
@@ -388,9 +633,27 @@ Browser Geolocation API
 ```text
 Python
 FastAPI
-SQLAlchemy
 Pydantic
+SQLAlchemy
 Uvicorn
+```
+
+## Computer Vision
+
+```text
+Python
+Ultralytics YOLO
+PyTorch
+OpenCV
+```
+
+## Geospatial
+
+```text
+OpenStreetMap
+Overpass API
+PostGIS
+GeoJSON
 ```
 
 ## Database
@@ -400,121 +663,24 @@ PostgreSQL
 PostGIS
 ```
 
-PostGIS can be used for:
+## Development
 
 ```text
-Distance calculations
-Nearby-location queries
-Spatial indexing
-GeoJSON generation
-```
-
-## Machine Learning
-
-```text
-Python
-PyTorch / Hosted Inference
-OpenCV
-Lightweight Object Detector
-```
-
-Possible hackathon-friendly approach:
-
-```text
-Roboflow Dataset
-        ↓
-Fine-tuned YOLO Model
-        ↓
-Inference
-        ↓
-Label + Confidence
-```
-
-A hosted inference API can also be used if training a model consumes too much hackathon time.
-
-## Infrastructure
-
-```text
-Docker
-Docker Compose
 Git
 GitHub
+Docker
+Docker Compose
 ```
 
 ---
 
-# 📁 Project Structure
+# 🗄️ Database Design
 
-```text
-gridverify/
-│
-├── README.md
-├── docker-compose.yml
-│
-├── backend/
-│   │
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   │
-│   ├── main.py
-│   │
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   │
-│   ├── routers/
-│   │   ├── health.py
-│   │   └── submissions.py
-│   │
-│   ├── services/
-│   │   ├── cv_service.py
-│   │   ├── osm_service.py
-│   │   └── confidence_engine.py
-│   │
-│   └── uploads/
-│
-├── ml/
-│   │
-│   ├── requirements.txt
-│   ├── labels.py
-│   ├── infer.py
-│   ├── train.py
-│   │
-│   └── model/
-│
-└── frontend/
-    │
-    ├── package.json
-    ├── vite.config.ts
-    ├── index.html
-    │
-    └── src/
-        │
-        ├── main.tsx
-        ├── App.tsx
-        │
-        ├── api/
-        │   └── client.ts
-        │
-        ├── components/
-        │   ├── Map.tsx
-        │   ├── MarkerPopup.tsx
-        │   └── SubmissionForm.tsx
-        │
-        ├── pages/
-        │   └── Home.tsx
-        │
-        └── types/
-            └── submission.ts
-```
-
----
-
-# 🗃️ Database Design
-
-For the hackathon MVP, only one main table is necessary.
+For the hackathon MVP, the core database can remain deliberately simple.
 
 ## `submissions`
+
+Suggested fields:
 
 ```text
 id
@@ -525,7 +691,6 @@ latitude
 longitude
 
 photo_path
-
 submitted_at
 
 cv_label
@@ -543,36 +708,38 @@ status
 Example:
 
 ```text
-id                  47
+id                   47
 
-claimed_asset_type  transmission_tower
+claimed_asset_type   transformer
 
-latitude            12.9345
-longitude           77.5342
+latitude             12.9345
+longitude            77.5342
 
-cv_label            transmission_tower
-cv_confidence       0.92
+cv_label             transformer
+cv_confidence        0.92
 
-osm_match           true
-osm_distance_m      8.4
+osm_match            true
+osm_distance_m       8.4
 osm_score            0.85
 
-final_confidence    0.89
+final_confidence     0.89
 
-status              VERIFIED
+status               VERIFIED
 ```
+
+PostGIS can later support:
+
+- Nearby-location queries
+- Distance calculations
+- Spatial indexes
+- GeoJSON generation
+- Coverage analysis
 
 ---
 
-# 🌐 API Design
+# 🔌 API Design
 
-Base URL:
-
-```text
-/api
-```
-
----
+The MVP API should remain small.
 
 ## Health Check
 
@@ -580,7 +747,7 @@ Base URL:
 GET /api/health
 ```
 
-Response:
+Example response:
 
 ```json
 {
@@ -605,12 +772,20 @@ longitude
 asset_type
 ```
 
-Response:
+Conceptual response:
 
 ```json
 {
-  "submission_id": 47,
-  "status": "processing"
+  "id": 42,
+  "claimed_asset": "transformer",
+  "cv_label": "transformer",
+  "cv_confidence": 0.91,
+  "osm_match": false,
+  "osm_distance_m": null,
+  "final_confidence": 0.91,
+  "status": "POSSIBLE_UNMAPPED",
+  "latitude": 12.9345,
+  "longitude": 77.5342
 }
 ```
 
@@ -622,312 +797,186 @@ Response:
 GET /api/submissions/{id}
 ```
 
-Example:
-
-```json
-{
-  "submission_id": 47,
-  "claimed_asset_type": "transmission_tower",
-  "cv_label": "transmission_tower",
-  "cv_confidence": 0.92,
-  "osm_match": true,
-  "osm_distance_m": 8.4,
-  "final_confidence": 0.89,
-  "status": "VERIFIED"
-}
-```
-
 ---
 
-## Get All Submissions
+## Get Map Observations
 
 ```http
 GET /api/submissions
 ```
 
-Returns a GeoJSON `FeatureCollection`.
+This endpoint can return observations as GeoJSON for direct map visualization.
+
+---
+
+# 📁 Proposed Repository Structure
+
+```text
+GridVerify/
+│
+├── README.md
+├── docker-compose.yml
+│
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── main.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   │
+│   ├── routers/
+│   │   ├── health.py
+│   │   └── submissions.py
+│   │
+│   ├── services/
+│   │   ├── cv_service.py
+│   │   ├── osm_service.py
+│   │   └── confidence_engine.py
+│   │
+│   └── uploads/
+│
+├── ml/
+│   ├── model/
+│   │   └── gridverify_yolo.pt
+│   │
+│   └── training/
+│       ├── datasets/
+│       ├── gridverify_dataset/
+│       ├── data.yaml
+│       └── train.py
+│
+└── frontend/
+    ├── package.json
+    ├── vite.config.ts
+    ├── index.html
+    │
+    └── src/
+        ├── main.tsx
+        ├── App.tsx
+        │
+        ├── api/
+        │   └── client.ts
+        │
+        ├── components/
+        │   ├── Map.tsx
+        │   ├── MarkerPopup.tsx
+        │   └── SubmissionForm.tsx
+        │
+        ├── pages/
+        │   └── Home.tsx
+        │
+        └── types/
+            └── submission.ts
+```
+
+---
+
+# 👥 Team Responsibilities — 4 Members
+
+The four members work **in parallel**, not sequentially.
+
+---
+
+## 👤 Member 1 — AI / Computer Vision
+
+### Responsibilities
+
+- Inspect downloaded datasets
+- Normalize dataset labels
+- Merge datasets
+- Prepare YOLO `data.yaml`
+- Train the model
+- Validate the model
+- Test on real photographs
+- Export `best.pt`
+- Implement `cv_service.py`
+
+Pipeline:
+
+```text
+Datasets
+   ↓
+Normalize
+   ↓
+Train YOLO
+   ↓
+Validate
+   ↓
+Real Photo Testing
+   ↓
+best.pt
+   ↓
+CV Service
+```
+
+Expected service output:
+
+```json
+{
+  "label": "transformer",
+  "confidence": 0.91
+}
+```
+
+---
+
+## 👤 Member 2 — Backend / Verification Engine
+
+### Responsibilities
+
+- Build FastAPI application
+- Implement API endpoints
+- Handle image uploads
+- Connect CV service
+- Implement confidence logic
+- Combine CV and OSM results
+- Generate verification status
+- Handle errors
+
+Core endpoints:
+
+```text
+GET  /api/health
+
+POST /api/submissions
+
+GET  /api/submissions
+
+GET  /api/submissions/{id}
+```
+
+Member 2 should initially use **mock CV results**.
 
 Example:
 
 ```json
 {
-  "type": "FeatureCollection",
-  "features": []
+  "label": "transformer",
+  "confidence": 0.90
 }
 ```
 
-The frontend uses this endpoint to display map markers.
+This allows backend development to continue while Member 1 trains the real model.
 
 ---
 
-# ⏱️ 24-Hour Hackathon Development Plan
-
-The goal is **not to build everything imaginable**.
-
-The goal is:
-
-> Build one complete pipeline that works from photo submission to map visualization.
-
----
-
-# 🕐 Hour 0–2 — Setup
-
-### Everyone
-
-```text
-Create GitHub repository
-Create branches
-Create frontend/backend folders
-Setup virtual environments
-Setup npm project
-Setup PostgreSQL
-Confirm API contracts
-```
-
-Freeze the architecture after this point.
-
-Do not redesign the entire project halfway through the hackathon.
-
----
-
-# 🕒 Hour 2–6 — Build Components
-
-## Member 1 — ML / Computer Vision
-
-```text
-Find / prepare sample dataset
-      ↓
-Setup inference
-      ↓
-Test asset recognition
-      ↓
-Create:
-
-verify_image(image, claimed_type)
-
-Returns:
-
-{
-    label,
-    confidence
-}
-```
-
-Target:
-
-```text
-IMAGE
-  ↓
-MODEL
-  ↓
-LABEL + CONFIDENCE
-```
-
----
-
-## Member 2 — Backend
-
-Build:
-
-```text
-FastAPI application
-Database connection
-Submission model
-POST /api/submissions
-GET /api/submissions
-GET /api/submissions/{id}
-```
-
-Target:
-
-```text
-Frontend
-   ↓
-FastAPI
-   ↓
-PostgreSQL
-```
-
----
-
-## Member 3 — Frontend
-
-Build:
-
-```text
-React page
-Photo upload
-GPS capture
-Asset dropdown
-Submit button
-Map component
-```
-
-Target UI:
-
-```text
-┌────────────────────────────┐
-│       GRIDVERIFY           │
-├──────────────┬─────────────┤
-│              │             │
-│ Submission   │    MAP      │
-│ Form         │             │
-│              │   ● ● ●     │
-│ Upload       │             │
-│ GPS          │             │
-│ Asset Type   │             │
-│              │             │
-│ [SUBMIT]     │             │
-└──────────────┴─────────────┘
-```
-
----
-
-## Member 4 — Geospatial / OSM
-
-Build:
-
-```text
-GPS validation
-      ↓
-Overpass API query
-      ↓
-Nearby power object search
-      ↓
-Distance calculation
-      ↓
-OSM score
-```
-
-Function:
-
-```python
-verify_osm(latitude, longitude, asset_type)
-```
-
-Returns conceptually:
-
-```json
-{
-  "match": true,
-  "distance_m": 8.4,
-  "score": 0.85
-}
-```
-
----
-
-# 🕕 Hour 6–10 — First Integration
-
-Connect:
-
-```text
-Frontend
-   ↓
-FastAPI
-   ↓
-Database
-```
-
-Then:
-
-```text
-FastAPI
-   ↓
-CV
-```
-
-Then:
-
-```text
-FastAPI
-   ↓
-OSM
-```
-
-Do not worry about beautiful UI yet.
-
----
-
-# 🕙 Hour 10–14 — Complete Verification Pipeline
-
-Implement:
-
-```text
-Photo
-  ↓
-CV
-  ↓
-CV Confidence
-
-GPS
-  ↓
-OSM Check
-  ↓
-OSM Confidence
-
-CV + OSM
-  ↓
-Confidence Engine
-  ↓
-Verification Status
-```
-
-The complete backend should now return:
-
-```json
-{
-  "submission_id": 47,
-  "cv_label": "utility_pole",
-  "cv_confidence": 0.91,
-  "osm_match": true,
-  "osm_distance_m": 12.3,
-  "final_confidence": 0.87,
-  "status": "VERIFIED"
-}
-```
-
----
-
-# 🕑 Hour 14–17 — Interactive Map
-
-Build the GeoJSON endpoint.
-
-```text
-Database
-    ↓
-GeoJSON
-    ↓
-MapLibre
-    ↓
-Markers
-```
-
-Marker colors:
-
-```text
-VERIFIED     → 🟢
-PENDING      → 🟡
-UNMAPPED     → 🟠
-REJECTED     → 🔴
-```
-
-Clicking a marker should display:
-
-```text
-Asset Type
-CV Confidence
-OSM Match
-Distance
-Final Confidence
-Status
-```
-
----
-
-# 🕔 Hour 17–19 — End-to-End Testing
-
-Test the complete flow.
+## 👤 Member 3 — Frontend / UI
+
+### Responsibilities
+
+- React application
+- Photo upload/capture
+- GPS capture
+- Asset selector
+- API communication
+- Verification-result display
+- Loading states
+- Error states
+- Responsive design
+- UI polish
+
+Target flow:
 
 ```text
 Upload Photo
@@ -938,552 +987,592 @@ Select Asset
       ↓
 Submit
       ↓
-CV Detection
+Verification
       ↓
-OSM Verification
-      ↓
-Confidence Score
-      ↓
-Database Storage
-      ↓
-Marker Appears
+Result
 ```
 
-Test at least:
+Example result:
 
 ```text
-1 correct infrastructure image
-1 wrong infrastructure classification
-1 location with OSM match
-1 location without OSM match
-1 non-infrastructure image
-```
+GRIDVERIFY RESULT
 
----
-
-# 🕖 Hour 19–21 — UI Polish
-
-Only now improve presentation.
-
-Add:
-
-```text
-Loading animation
-Confidence progress bar
-Status badge
-Marker popup
-Error messages
-Responsive layout
-Project logo
-Basic landing text
-```
-
-Do NOT rebuild the frontend.
-
----
-
-# 🕘 Hour 21–22 — Prepare Demo Data
-
-Seed around:
-
-```text
-8–15 observations
-```
-
-Include:
-
-```text
-🟢 Verified locations
-🟡 Pending locations
-🟠 Possible unmapped assets
-🔴 Rejected submissions
-```
-
-This makes the map visually meaningful before the live demo.
-
----
-
-# 🕙 Hour 22–23 — Presentation + Demo Preparation
-
-Prepare:
-
-```text
-Problem
-Solution
-Architecture
-AI
-Geospatial verification
-Innovation
-Impact
-Demo
-Future scope
-```
-
-Everyone should understand the complete project.
-
----
-
-# 🕚 Hour 23–24 — Freeze Everything
-
-### DO NOT ADD FEATURES.
-
-Only:
-
-```text
-Fix bugs
-Test API
-Test database
-Test CV
-Test OSM
-Test GPS
-Test map
-Test demo
-```
-
-Run the complete demo repeatedly.
-
----
-
-# 🔥 Development Priority
-
-## P0 — MUST WORK
-
-```text
-Map loads
-     ↓
-Photo + GPS + Asset Type
-     ↓
-Backend receives submission
-     ↓
-Database stores submission
-     ↓
-CV inference runs
-     ↓
-OSM verification runs
-     ↓
-Confidence score calculated
-     ↓
-Verification status assigned
-     ↓
-Marker appears on map
-```
-
-If this works, **you have a hackathon project**.
-
----
-
-# 🟡 Stretch Features
-
-Only attempt these if the complete P0 pipeline is working.
-
-```text
-Satellite verification
-
-Crowd clustering
-
-Human review dashboard
-
-Coverage-gap heatmap
-
-Advanced CV model
-
-Duplicate detection
-
-Contributor reputation
-
-Gamification
-```
-
-Priority:
-
-```text
-P0 complete
-     ↓
-Coverage heatmap
-     ↓
-Human review
-     ↓
-Crowd clustering
-     ↓
-Satellite verification
-```
-
----
-
-# ❌ Do NOT Build During the Hackathon
-
-Do not promise or attempt:
-
-```text
-Blockchain
-
-Complex microservices
-
-Full electrical-grid topology
-
-Infrastructure-health prediction
-
-Transformer voltage prediction
-
-Capacity prediction
-
-Failure prediction without real data
-
-Massive production-scale architecture
-```
-
-These features make the project sound less realistic rather than more impressive.
-
----
-
-# 🧪 Demo Scenario
-
-Choose a small demo area containing:
-
-```text
-Known mapped infrastructure
-
-Possible unmapped infrastructure
-
-Wrong / invalid submissions
-```
-
-Seed several observations before presenting.
-
-Then perform **one real submission live**.
-
----
-
-# 🎬 Judge Demo Flow
-
-```text
-1. Open GridVerify
-
-            ↓
-
-2. Show existing infrastructure map
-
-            ↓
-
-3. Upload / capture infrastructure photo
-
-            ↓
-
-4. GPS automatically captured
-
-            ↓
-
-5. Select infrastructure type
-
-            ↓
-
-6. Submit observation
-
-            ↓
-
-7. AI identifies infrastructure
-
-            ↓
-
-8. OSM cross-check runs
-
-            ↓
-
-9. Confidence score generated
-
-            ↓
-
-10. Verification status shown
-
-            ↓
-
-11. New marker appears on map
-```
-
-Target demo time:
-
-```text
-< 2 minutes
-```
-
----
-
-# 🎤 Example Live Result
-
-```text
-Asset
-Pole-Mounted Transformer
+Claim
+Transformer
 
 AI Detection
 Transformer
 
 AI Confidence
-93%
+94%
 
-OSM Verification
-No Nearby Record
-
-Final Result
-Possible Unmapped Asset
-
-Confidence
-93%
+OSM
+No nearby record
 
 Status
-🟠 POSSIBLE UNMAPPED INFRASTRUCTURE
+
+🟠 POSSIBLE UNMAPPED
 ```
-
-Then explain:
-
-> The absence of an OSM record doesn't automatically make the observation invalid. If computer vision strongly verifies the asset but the existing map has no corresponding record, GridVerify identifies it as potentially unmapped infrastructure.
 
 ---
 
-# 💎 Key Innovation
+## 👤 Member 4 — Geospatial / Database / Integration
 
-GridVerify does not simply ask:
+### Responsibilities
 
-```text
-Where is infrastructure?
-```
+- PostgreSQL
+- PostGIS
+- Database schema
+- OpenStreetMap queries
+- Overpass API
+- Nearby-object search
+- Distance calculation
+- GeoJSON
+- Interactive map
+- Map markers
+- End-to-end integration
+- Debugging
 
-It asks three questions:
-
-```text
-Does this photograph actually contain
-the claimed infrastructure?
-
-              +
-
-Does existing geospatial data already
-know about it?
-
-              +
-
-How confident are we in the observation?
-```
-
-Therefore every observation contains **explainable evidence**.
-
-Example:
+Member 4 also acts as the **integration owner**.
 
 ```text
-Computer Vision:
-92%
-
-OSM Match:
-8.4 metres away
-
-Final Confidence:
-89%
-
-Status:
-VERIFIED
+Frontend
+    ↕
+FastAPI
+    ↕
+CV + OSM
+    ↕
+Database
+    ↕
+Map
 ```
 
-Instead of simply:
+---
+
+# 🤝 Parallel Development Strategy
+
+Do **not** develop GridVerify like this:
 
 ```text
-"This tower exists."
+ML
+ ↓
+Backend
+ ↓
+Database
+ ↓
+Frontend
+ ↓
+Integration
 ```
+
+That wastes hackathon time.
+
+Instead:
+
+```text
+                 START
+                   │
+       ┌───────────┼───────────┐
+       │           │           │
+       ▼           ▼           ▼
+    Member 1    Member 2    Member 3
+      ML         Backend     Frontend
+       │           │           │
+       │           │           │
+       └──────┐    │    ┌──────┘
+              │    │    │
+              ▼    ▼    ▼
+                Member 4
+          DB + Geo + Integration
+                   │
+                   ▼
+               GRIDVERIFY
+```
+
+All members should agree on the API contract before development begins.
+
+---
+
+# ⏱️ 24-Hour Hackathon Plan
+
+## Hour 0–1 — Setup
+
+Everyone together:
+
+```text
+Clone repository
+        ↓
+Create branches
+        ↓
+Set up environments
+        ↓
+Freeze architecture
+        ↓
+Freeze API contract
+        ↓
+Freeze database schema
+```
+
+No architecture redesign after this unless absolutely necessary.
+
+---
+
+## Hour 1–5 — Parallel Development
+
+### Member 1
+
+```text
+Datasets
+→ Normalize
+→ Merge
+→ Start YOLO Training
+```
+
+### Member 2
+
+```text
+FastAPI
+→ Submission API
+→ Mock CV
+→ Verification Logic
+```
+
+### Member 3
+
+```text
+React
+→ Upload UI
+→ GPS
+→ Asset Selection
+→ Mock Results
+```
+
+### Member 4
+
+```text
+PostgreSQL
+→ PostGIS
+→ OSM
+→ Map
+```
+
+---
+
+## Hour 5–8 — First Integration
+
+```text
+CV Service
+      ↓
+FastAPI
+      ↓
+Database
+
+Frontend
+      ↓
+FastAPI
+
+Database
+      ↓
+Map
+```
+
+Do not wait until the end of the hackathon to integrate.
+
+---
+
+## Hour 8–12 — End-to-End MVP
+
+Target:
+
+```text
+PHOTO
+  ↓
+GPS
+  ↓
+ASSET TYPE
+  ↓
+FASTAPI
+  │
+  ├───────────────┐
+  ▼               ▼
+YOLO             OSM
+  │               │
+  └───────┬───────┘
+          ▼
+   VERIFICATION
+          ↓
+      DATABASE
+          ↓
+         MAP
+```
+
+By approximately halfway through the hackathon, this pipeline should work.
+
+---
+
+## Hour 12–16 — Reliability
+
+Focus on:
+
+```text
+Bug fixing
+Real photographs
+OSM testing
+Model testing
+UI cleanup
+API error handling
+Database issues
+Map issues
+```
+
+Reliability is more important than adding features.
+
+---
+
+## Hour 16–19 — Stretch Feature
+
+Only if the MVP works.
+
+Choose **one**:
+
+```text
+Coverage Heatmap
+```
+
+OR
+
+```text
+Human Review Dashboard
+```
+
+OR
+
+```text
+Crowd Clustering
+```
+
+Do not attempt all three.
+
+---
+
+## Hour 19–21 — Feature Freeze
+
+Stop adding functionality.
+
+Work on:
+
+- README
+- Architecture diagram
+- Screenshots
+- Results
+- PPT
+- GitHub cleanup
+- Demo data
+
+---
+
+## Hour 21–23 — Demo Rehearsal
+
+Run the complete demo repeatedly.
+
+Test:
+
+```text
+What if GPS fails?
+
+What if internet fails?
+
+What if OSM fails?
+
+What if YOLO detects nothing?
+
+What if the backend restarts?
+
+What if the database is empty?
+
+What if the uploaded image is invalid?
+```
+
+Prepare fallback demo images and known working locations.
+
+---
+
+## Hour 23–24 — Final Preparation
+
+**No new features.**
+
+Only:
+
+```text
+Final Git Push
+Final PPT
+Restart Services
+Test Demo
+Prepare Pitch
+```
+
+---
+
+# 🎬 Judge Demo
+
+The ideal live demonstration should take less than two minutes.
+
+### Step 1
+
+Open GridVerify.
+
+Show the map.
+
+### Step 2
+
+Upload a photograph of a transformer/pole/tower.
+
+### Step 3
+
+Allow GridVerify to capture GPS.
+
+### Step 4
+
+Select:
+
+```text
+Transformer
+```
+
+### Step 5
+
+Press:
+
+```text
+VERIFY
+```
+
+### Step 6
+
+GridVerify runs:
+
+```text
+Photo
+ ↓
+YOLO
+ ↓
+Transformer — 94%
+```
+
+and:
+
+```text
+GPS
+ ↓
+OpenStreetMap
+ ↓
+Nearby infrastructure search
+```
+
+### Step 7
+
+Display:
+
+```text
+AI Detection
+Transformer
+
+Confidence
+94%
+
+OSM
+No nearby transformer
+
+Status
+
+🟠 POSSIBLE_UNMAPPED
+```
+
+### Step 8
+
+Show the new marker on the map.
+
+Then explain:
+
+> **GridVerify has not failed because OpenStreetMap does not contain the transformer. Discovering infrastructure that may be missing from existing maps is one of the core purposes of GridVerify.**
+
+---
+
+# ✨ What Makes GridVerify Different?
+
+The novelty is **not simply YOLO**.
+
+The novelty is **not simply OpenStreetMap**.
+
+The novelty is **not simply crowdsourcing**.
+
+The key idea is the complete verification workflow:
+
+```text
+Citizen Observation
+        ↓
+Visual Evidence
+        ↓
+Computer Vision
+        +
+Geospatial Cross-Check
+        ↓
+Explainable Verification
+        ↓
+Existing Infrastructure
+        OR
+Potentially Unmapped Infrastructure
+        ↓
+Improved Infrastructure Dataset
+```
+
+Instead of assuming that a complete infrastructure dataset already exists, GridVerify attempts to help **build and improve that dataset**.
+
+---
+
+# 🔁 Long-Term Data Loop
+
+GridVerify can eventually become its own infrastructure-data generation system.
+
+```text
+Existing Public Datasets
+        ↓
+Initial CV Model
+        ↓
+GridVerify
+        ↓
+Citizen Observations
+        ↓
+CV + OSM Verification
+        ↓
+Human-Reviewed Observations
+        ↓
+GridVerify Dataset
+        ↓
+Model Retraining
+        ↓
+Better CV Model
+        ↓
+More Reliable Observations
+```
+
+This creates a continuously improving dataset.
+
+---
+
+# 🚀 Future Improvements
+
+After the hackathon:
+
+- Larger India-specific infrastructure dataset
+- Additional infrastructure classes
+- Satellite-image verification
+- Multiple observations for the same asset
+- Duplicate detection
+- Crowd consensus
+- Contributor reputation
+- Human-review dashboard
+- Coverage-gap heatmaps
+- Advanced confidence calibration
+- Active learning
+- Better object detection
+- Offline field-data collection
+- Infrastructure-change detection
+
+---
+
+# ❌ Out of Scope for the Hackathon
+
+GridVerify will **not** attempt to build:
+
+- Blockchain infrastructure
+- Complex microservices
+- Full electrical-grid topology
+- Power-flow simulation
+- Infrastructure health prediction
+- Transformer failure prediction
+- Voltage prediction
+- Capacity prediction
+- SCADA functionality
+- Production-scale utility management
+
+The objective is a reliable working prototype.
 
 ---
 
 # 🛡️ Safety
 
-GridVerify contributors should only photograph infrastructure that is visible from legitimate public locations.
+Electrical infrastructure can be dangerous.
 
-Contributors must:
+GridVerify observations should only be made from legitimate and safe public locations.
 
-```text
-Stay in public areas
+Contributors should **never**:
 
-Never enter substations
+- Enter substations
+- Enter restricted utility property
+- Cross fences
+- Climb electrical poles
+- Climb transmission towers
+- Touch electrical equipment
+- Interfere with infrastructure
 
-Never cross fences
+Contributors should also avoid unnecessarily capturing:
 
-Never climb poles
+- Faces
+- Vehicle number plates
+- Access-control systems
+- Sensitive security information
 
-Never climb towers
-
-Never touch electrical equipment
-```
-
-Avoid capturing:
-
-```text
-Faces
-
-Vehicle registration plates
-
-Security arrangements
-
-Restricted equipment
-
-Access-control systems
-
-Sensitive operational information
-```
+GridVerify is a **mapping and research platform**, not an operational grid-control system.
 
 ---
 
-# ⚠️ What GridVerify Is NOT
+# 🏁 MVP Success Criteria
 
-GridVerify is **not**:
-
-```text
-A SCADA system
-
-A power-grid controller
-
-A replacement for utility GIS
-
-A guaranteed source of ground truth
-
-A power-flow simulator
-
-An infrastructure-health predictor
-```
-
-Instead:
-
-> **GridVerify is an explainable, crowdsourced infrastructure-discovery and verification platform.**
-
----
-
-# 🔮 Future Scope
-
-After the MVP proves the core idea, GridVerify could expand into:
-
-### Crowd Verification
+The hackathon MVP is successful when a user can:
 
 ```text
-Multiple independent submissions
-            ↓
-Spatial clustering
-            ↓
-Higher confidence
-```
-
-### Satellite Verification
-
-```text
-Citizen Observation
-       +
+Upload Photo
+      +
+Capture GPS
+      +
+Select Asset
+      ↓
 Computer Vision
-       +
-OSM
-       +
-Satellite Imagery
-       ↓
-Multi-source Verification
+      +
+OSM Cross-Check
+      ↓
+Verification Decision
+      ↓
+Database Storage
+      ↓
+Interactive Map
 ```
 
-### Coverage Gap Analysis
+Everything beyond this is optional.
 
-Identify regions containing:
-
-```text
-Low infrastructure mapping density
-High citizen observations
-Missing OSM infrastructure
-```
-
-### Human Review Dashboard
-
-Allow trusted reviewers to inspect ambiguous observations.
-
-### Advanced AI
-
-Improve detection using larger infrastructure datasets and object-detection models.
+> ## **WORKING DEMO > MORE FEATURES**
 
 ---
 
-# 📊 Success Criteria
+# 🎤 One-Line Pitch
 
-At the end of 24 hours, the project should demonstrate:
-
-```text
-✅ Photo Upload
-
-✅ GPS Capture
-
-✅ Asset-Type Selection
-
-✅ Basic Computer Vision Verification
-
-✅ AI Confidence Score
-
-✅ OSM / Geospatial Validation
-
-✅ Combined Confidence Engine
-
-✅ PostgreSQL Database Storage
-
-✅ Verification Status
-
-✅ Interactive Infrastructure Map
-
-✅ End-to-End Working Demo
-```
-
-Anything beyond this is a bonus.
+> **GridVerify transforms citizen photographs into explainable, confidence-scored electrical-infrastructure observations by combining computer vision, GPS, and OpenStreetMap verification.**
 
 ---
 
-# 🏆 One-Line Pitch
+# 🌍 Vision
 
-> **GridVerify turns citizen photographs into explainable, confidence-scored infrastructure observations by combining computer vision, GPS and OpenStreetMap verification.**
+Traditional infrastructure maps answer:
 
----
+> **What infrastructure is already known?**
 
-# 🎤 30-Second Pitch
+GridVerify asks:
 
-Large transmission infrastructure is increasingly well mapped, but the distribution infrastructure closest to neighborhoods — utility poles and transformers — remains much harder to maintain accurately.
-
-**GridVerify targets that gap.**
-
-A citizen safely photographs visible infrastructure. We automatically capture its location and verify the observation in two independent ways: computer vision checks whether the image actually contains the claimed asset, while geospatial validation checks whether matching infrastructure already exists nearby in OpenStreetMap.
-
-If both agree, the observation receives high confidence.
-
-If AI strongly identifies the infrastructure but no map record exists, GridVerify identifies it as a **possible unmapped asset**.
-
-The result is an explainable, continuously growing infrastructure dataset rather than just another map viewer.
+> **What infrastructure can citizens observe, can AI verify it, does the existing map know about it, and if not, have we potentially discovered something missing?**
 
 ---
 
-# 👥 Team Responsibilities
+## ⚡ GridVerify
 
-| Member   | Responsibility                    |
-| -------- | --------------------------------- |
-| Member 1 | AI / Computer Vision              |
-| Member 2 | Backend + Database                |
-| Member 3 | Frontend + Interactive Map        |
-| Member 4 | OSM + Geospatial + Integration    |
-| Member 5 | Testing + Dataset + UI support    |
-| Member 6 | Integration + Demo + Presentation |
-
-For smaller teams, combine adjacent responsibilities.
-
----
-
-# 🏁 Final Rule
-
-During the hackathon:
-
-```text
-WORKING DEMO
-     >
-MORE FEATURES
-```
-
-A simple pipeline that works live is far more valuable than ten advanced features that cannot be demonstrated.
-
----
-
-## GridVerify
-
-**Crowd Observation + AI + Geospatial Verification → Better Infrastructure Maps**
-
-⚡ 📸 🤖 📍 🗺️
+### Citizen Observation + AI + Geospatial Verification → Better Infrastructure Data
